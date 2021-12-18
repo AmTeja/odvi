@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,8 +25,10 @@ class _HomepageState extends State<Homepage> {
 
   FlutterTts flutterTts = FlutterTts();
 
+  Timer? timer;
+
   initCamera() {
-    cameraController = CameraController(cameras![0], ResolutionPreset.high);
+    cameraController = CameraController(cameras![0], ResolutionPreset.veryHigh);
     cameraController!.initialize().then((value) {
       if(!mounted){
         return;
@@ -32,7 +36,6 @@ class _HomepageState extends State<Homepage> {
       setState(() {
         cameraController!.startImageStream((image) => {
             imageCamera = image,
-            runModelOnStreamFile(),
         });
       });
     });
@@ -54,17 +57,25 @@ class _HomepageState extends State<Homepage> {
           threshold: 0.1,
           asynch: true,
         );
-        for (var response in recognitions!) {
-          setState(() async {
-            result = response['label'];
-            if(response['confidence'] >= 0.70 && speak){
-              await flutterTts.speak(result);
-              Future.delayed(const Duration(seconds: 2));
-            }
-          });
+        result = '${recognitions![0]['label']} ${ recognitions[0]['confidence']}' ;
+        setState(() {
+
+        });
+        if(recognitions[0]['confidence'] >= 0.80){
+            await _speak(recognitions[0]['label'].toString());
         }
+        // for (var response in recognitions!) {
+        //   setState(() async {
+        //     result = response['label'];
+        //
+        //   });
+        // }
       }
   }
+
+Future _speak(String text) async{
+  var result = await flutterTts.speak(text);
+}
 
   loadModel() async {
     Tflite.close( );
@@ -130,6 +141,12 @@ class _HomepageState extends State<Homepage> {
                                 onceDone = true;
                               } else {
                                 speak = !speak;
+                                print("speak: $speak");
+                                if(speak){
+                                  timer = Timer.periodic(Duration(seconds: 2), (timer) => runModelOnStreamFile());
+                                }else{
+                                  timer?.cancel();
+                                }
                                 onceDone = false;
                                 setState(() {
 
@@ -145,6 +162,24 @@ class _HomepageState extends State<Homepage> {
                                 speak ? "Stop Dictating" : "Start Dictating",
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(fontSize: 20),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: MaterialButton(
+                            onPressed: () async {
+                              await runModelOnStreamFile();
+                            },
+                            minWidth: 200,
+                            color: Colors.blue,
+                            child: Container(
+                              height: 100,
+                              width: MediaQuery.of(context).size.width,
+                              child: const Text(
+                                'Detect',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 20),
                               ),
                             ),
                           ),
